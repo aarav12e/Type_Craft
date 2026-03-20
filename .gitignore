@@ -1,0 +1,88 @@
+# =========================
+# GENERAL
+# =========================
+.DS_Store
+Thumbs.db
+*.log
+logs
+*.tmp
+*.swp
+
+# =========================
+# NODE MODULES (Frontend + Backend)
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# ENV FILES (IMPORTANT)
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# BUILD / DIST
+# =========================
+dist/
+build/
+out/
+.next/
+.vite/
+
+# =========================
+# FRONTEND SPECIFIC
+# =========================
+coverage/
+*.local
+
+# React / Vite
+vite.svg
+
+# Next.js
+.next/
+out/
+
+# =========================
+# BACKEND SPECIFIC
+# =========================
+uploads/
+tmp/
+temp/
+
+# =========================
+# DATABASE
+# =========================
+*.sqlite
+*.db
+*.db-journal
+
+# MongoDB local dumps
+dump/
+
+# =========================
+# JAVA (if backend uses Java)
+# =========================
+*.class
+*.jar
+*.war
+*.ear
+target/
+.gradle/
+build/
+
+# =========================
+# IDE / EDITOR
+# =========================
+.vscode/
+.idea/
+*.iml
+
+# =========================
+# OS FILES
+# =========================
+*.log
+*.lock
