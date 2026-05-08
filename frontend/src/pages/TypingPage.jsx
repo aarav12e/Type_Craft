@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { RotateCcw, Trophy, Keyboard, Zap, Target, Clock } from 'lucide-react';
+import { RotateCcw, Trophy, Keyboard, Zap, Target, Clock, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import gsap from 'gsap';
 
 // ─── Word bank ────────────────────────────────────────────────────────────────
 const WORDS = [
@@ -52,18 +53,25 @@ const TypingPage = () => {
   const [timeLeft, setTimeLeft] = useState(60);
   const [startTime, setStartTime] = useState(null);
   const [caretPos, setCaretPos] = useState({ top: 0, left: 0 });
+  const [isIdle, setIsIdle] = useState(true);
+
+  // Custom Time Modal State
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customTimeInput, setCustomTimeInput] = useState('');
 
   const inputRef = useRef(null);
   const wordsRef = useRef(null);
   const timerRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
   const wordElemsRef = useRef([]);
   const scoreSavedRef = useRef(false);
+  const caretRef = useRef(null);
 
   const [finalStats, setFinalStats] = useState(null);
 
   // ─── Stats ─────────────────────────────────────────────────────────────────
   const calcStats = useCallback(() => {
-    const elapsed = duration - timeLeft;
+    const elapsed = duration === 0 ? timeLeft : duration - timeLeft;
     const minutesElapsed = Math.max(elapsed / 60, 1 / 60);
 
     let correct = 0, incorrect = 0, totalChars = 0;
@@ -89,16 +97,16 @@ const TypingPage = () => {
     if (status !== 'running') return;
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
-        if (t <= 1) {
+        if (duration > 0 && t <= 1) {
           clearInterval(timerRef.current);
           setStatus('finished');
           return 0;
         }
-        return t - 1;
+        return duration === 0 ? t + 1 : t - 1;
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [status]);
+  }, [status, duration]);
 
   // ─── When finished ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -171,9 +179,35 @@ const TypingPage = () => {
     return () => cancelAnimationFrame(raf);
   }, [currentWordIdx, currentInput]);
 
+  // ─── GSAP Cursor Animation ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (caretRef.current) {
+      gsap.to(caretRef.current, {
+        x: caretPos.left,
+        y: caretPos.top,
+        duration: 0.15, // Increased for a smoother, more noticeable glide
+        ease: 'power3.out', // Smoother deceleration
+      });
+    }
+  }, [caretPos.left, caretPos.top]);
+
   // ─── Keyboard handler ──────────────────────────────────────────────────────
   const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      if (status === 'running') {
+        setStatus('finished');
+        clearInterval(timerRef.current);
+      }
+      return;
+    }
+
     if (status === 'finished') return;
+    if (showCustomModal) return;
+
+    // Reset the idle blinking timeout on any keypress
+    setIsIdle(false);
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => setIsIdle(true), 1000);
 
     if (status === 'idle') {
       if (e.key.length === 1 || e.key === 'Backspace') {
@@ -225,6 +259,7 @@ const TypingPage = () => {
     setTimeLeft(duration);
     setStartTime(null);
     setFinalStats(null);
+    setIsIdle(true);
     scoreSavedRef.current = false;
     // Reset scroll
     if (wordsRef.current) wordsRef.current.scrollTop = 0;
@@ -241,12 +276,57 @@ const TypingPage = () => {
     setCurrentInput('');
     setTypedWords([]);
     setStatus('idle');
-    setTimeLeft(d);
+    setTimeLeft(d === 0 ? 0 : d);
     setStartTime(null);
     setFinalStats(null);
+    setIsIdle(true);
     scoreSavedRef.current = false;
     if (wordsRef.current) wordsRef.current.scrollTop = 0;
     setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const parseCustomInput = (str) => {
+    if (!str) return null;
+    if (/^\d+$/.test(str)) {
+      const val = parseInt(str, 10);
+      return val === 0 ? 0 : val;
+    }
+    let seconds = 0;
+    const hours = str.match(/(\d+)h/i);
+    const minutes = str.match(/(\d+)m/i);
+    const secs = str.match(/(\d+)s/i);
+    if (hours) seconds += parseInt(hours[1], 10) * 3600;
+    if (minutes) seconds += parseInt(minutes[1], 10) * 60;
+    if (secs) seconds += parseInt(secs[1], 10);
+    return seconds > 0 ? seconds : null;
+  };
+
+  const formatCustomTimeDisplay = (seconds) => {
+    if (seconds === 0) return 'Infinite';
+    if (seconds === null || isNaN(seconds)) return 'Invalid';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    let parts = [];
+    if (h > 0) parts.push(`${h} hour${h > 1 ? 's' : ''}`);
+    if (m > 0) parts.push(`${m} minute${m > 1 ? 's' : ''}`);
+    if (s > 0 || (h === 0 && m === 0)) parts.push(`${s} second${s > 1 || s === 0 ? 's' : ''}`);
+    return parts.join(' ');
+  };
+
+  const applyCustomTime = () => {
+    const parsed = parseCustomInput(customTimeInput);
+    if (parsed !== null) {
+      changeDuration(parsed);
+      setShowCustomModal(false);
+    } else {
+      toast.error('Invalid time format');
+    }
+  };
+
+  const handleCustomTime = () => {
+    setCustomTimeInput('');
+    setShowCustomModal(true);
   };
 
   const handleContainerClick = () => inputRef.current?.focus();
@@ -390,10 +470,22 @@ const TypingPage = () => {
               <Clock size={12} style={{display:'inline', marginRight:'3px'}}/>{d}s
             </button>
           ))}
+          <button
+            className={`dur-btn ${!DURATIONS.includes(duration) ? 'active' : ''}`}
+            onClick={(e) => { e.stopPropagation(); handleCustomTime(); }}
+            title="Custom Time"
+          >
+            <Settings size={12} style={{display:'inline', marginRight:'3px'}}/>
+            {!DURATIONS.includes(duration) ? (duration === 0 ? 'infinite' : `${duration}s`) : 'custom'}
+          </button>
         </div>
 
         <div className="test-timer">
-          <span className={`timer-num ${timeLeft <= 5 ? 'danger' : ''}`}>{timeLeft}</span>
+          {duration === 0 ? (
+            <span className="timer-num infinite">∞</span>
+          ) : (
+            <span className={`timer-num ${timeLeft <= 5 ? 'danger' : ''}`}>{timeLeft}</span>
+          )}
         </div>
 
         <div className="live-wpm">
@@ -424,8 +516,8 @@ const TypingPage = () => {
         {/* Caret */}
         {(status === 'running' || status === 'idle') && (
           <div
-            className="caret"
-            style={{ top: `${caretPos.top}px`, left: `${caretPos.left}px` }}
+            ref={caretRef}
+            className={`caret ${isIdle ? 'is-idle' : ''}`}
           />
         )}
         {words.map((word, idx) => renderWord(word, idx))}
@@ -452,6 +544,36 @@ const TypingPage = () => {
           restart
         </button>
       </div>
+
+      {/* Custom Time Modal */}
+      {showCustomModal && (
+        <div className="custom-modal-overlay" onClick={() => setShowCustomModal(false)}>
+          <div className="custom-modal-content" onClick={e => e.stopPropagation()}>
+            <h3 className="custom-modal-title">Test Duration</h3>
+            <div className="custom-time-display">
+              {formatCustomTimeDisplay(parseCustomInput(customTimeInput))}
+            </div>
+            <input 
+              type="text" 
+              className="custom-time-input" 
+              autoFocus
+              placeholder="e.g. 1h30m or 0"
+              value={customTimeInput}
+              onChange={(e) => setCustomTimeInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') applyCustomTime();
+                if (e.key === 'Escape') setShowCustomModal(false);
+              }}
+            />
+            <p className="custom-modal-hint">
+              You can use "h" for hours and "m" for minutes, for example "1h30m".<br/><br/>
+              You can start an infinite test by inputting 0. Then, to stop the test, use the Bail Out feature:
+              <br/><strong>(esc)</strong>
+            </p>
+            <button className="btn-primary" style={{width: '100%', marginTop: '1rem'}} onClick={applyCustomTime}>Apply</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
