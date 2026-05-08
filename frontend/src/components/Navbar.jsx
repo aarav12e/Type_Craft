@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Keyboard, Trophy, User, LogIn, UserPlus, LogOut, Menu, X } from 'lucide-react';
+import { Keyboard, Trophy, User, LogIn, UserPlus, LogOut, Menu, X, Gamepad2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ThemePanel from './ThemePanel';
 
@@ -37,6 +37,14 @@ const Navbar = () => {
         >
           <Keyboard size={14} />
           type
+        </Link>
+        <Link
+          to="/practice"
+          className={`nav-link ${isActive('/practice') ? 'active' : ''}`}
+          onClick={() => setMenuOpen(false)}
+        >
+          <Gamepad2 size={14} />
+          practice
         </Link>
         <Link
           to="/leaderboard"

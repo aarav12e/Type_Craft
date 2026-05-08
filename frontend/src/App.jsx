@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Leaderboard from './pages/Leaderboard';
 import Profile from './pages/Profile';
+import PracticePage from './pages/PracticePage';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -22,6 +23,7 @@ const AppRoutes = () => (
     <main className="main-content">
       <Routes>
         <Route path="/" element={<TypingPage />} />
+        <Route path="/practice" element={<PracticePage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
