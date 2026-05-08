@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Zap, Target, Code2, RotateCcw, Trophy, ChevronRight, Flame, Check, X } from 'lucide-react';
 
 // ─── Word banks ───────────────────────────────────────────────────────────────
@@ -26,14 +26,14 @@ const CODE_SNIPPETS = [
   { lang: 'CSS',        code: 'display: flex; align-items: center; justify-content: space-between;' },
   { lang: 'HTML',       code: '<div class="container"><h1>Hello World</h1></div>' },
   { lang: 'SQL',        code: 'SELECT name, score FROM users ORDER BY score DESC LIMIT 10;' },
-  { lang: 'TypeScript', code: 'const greet = (name: string): string => `Hello, ${name}!`;' },
+  // eslint-disable-next-line no-template-curly-in-string
+  { lang: 'TypeScript', code: 'const greet = (name: string): string => `Hello, \\${name}!`;' },
   { lang: 'JavaScript', code: 'const obj = { ...defaults, ...overrides };' },
   { lang: 'Python',     code: 'result = list(filter(lambda x: x > 0, numbers))' },
   { lang: 'JavaScript', code: 'useEffect(() => { return () => clearTimeout(timer); }, []);' },
 ];
 
 const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 // ─── Speed Burst game ─────────────────────────────────────────────────────────
 const SpeedBurst = () => {
@@ -177,8 +177,6 @@ const AccuracyDrill = () => {
     setWordIdx(0); setInput(''); setRound(0); setMistakes(0); setDone(false);
     inputRef.current?.focus();
   };
-
-  const accuracy = Math.max(0, Math.round((1 - mistakes / Math.max(mistakes + ROUNDS * currentWord.length * 0.1, 1)) * 100));
 
   if (done) return (
     <div className="pg-result">

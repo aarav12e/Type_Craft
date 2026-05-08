@@ -40,7 +40,7 @@ const generateWords = (count = 80) => {
 const DURATIONS = [15, 30, 60, 120];
 
 const TypingPage = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
 
   const [duration, setDuration] = useState(60);
@@ -52,7 +52,6 @@ const TypingPage = () => {
   const [timeLeft, setTimeLeft] = useState(60);
   const [startTime, setStartTime] = useState(null);
   const [caretPos, setCaretPos] = useState({ top: 0, left: 0 });
-  const [caretVisible, setCaretVisible] = useState(true);
 
   const inputRef = useRef(null);
   const wordsRef = useRef(null);
@@ -116,9 +115,12 @@ const TypingPage = () => {
         totalChars: stats.totalChars,
         rawWpm: stats.rawWpm,
         wordsTyped: stats.wordsTyped,
-      }).then(() => toast.success('Score saved! 🏆')).catch(() => {});
+      }).then((res) => {
+        if (res.data.user) updateUser(res.data.user);
+        toast.success('Score saved! 🏆');
+      }).catch(() => {});
     }
-  }, [status]);
+  }, [status, calcStats, duration, user, updateUser]);
 
 
   // ─── Auto-scroll + caret-after-scroll ─────────────────────────────────────

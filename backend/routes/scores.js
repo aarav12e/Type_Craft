@@ -1,6 +1,8 @@
 const express = require('express');
 const Score = require('../models/Score');
 const User = require('../models/User');
+const LeaderboardCache = require('../models/LeaderboardCache');
+const { updateRelevantCaches } = require('../utils/cacheManager');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
@@ -34,14 +36,19 @@ router.post('/', protect, async (req, res) => {
     const totalWpm = allUserScores.reduce((sum, s) => sum + s.wpm, 0);
     const avgWpm = Math.round(totalWpm / allUserScores.length);
 
-    await User.findByIdAndUpdate(req.user._id, {
+    const updatedUser = await User.findByIdAndUpdate(req.user._id, {
       totalTests: allUserScores.length,
       bestWpm: Math.max(user.bestWpm, wpm),
       bestAccuracy: Math.max(user.bestAccuracy, accuracy),
       averageWpm: avgWpm,
-    });
+    }, { new: true });
 
-    res.status(201).json({ score });
+    // Asynchronously update the JSON leaderboard cache for this duration and department
+    updateRelevantCaches(duration, updatedUser.department).catch(err => 
+      console.error('Background cache update failed:', err)
+    );
+
+    res.status(201).json({ score, user: updatedUser });
   } catch (error) {
     res.status(500).json({ message: 'Failed to save score' });
   }
@@ -53,65 +60,27 @@ router.get('/leaderboard', async (req, res) => {
     const duration = parseInt(req.query.duration) || 60;
     const limit = Math.min(parseInt(req.query.limit) || 10, 50);
     const page = parseInt(req.query.page) || 1;
-    const department = req.query.department;
+    const department = req.query.department || 'all';
 
-    // Build match stage
-    const matchStage = { duration };
+    // 1. Fetch the pre-calculated JSON leaderboard from the cache
+    let cache = await LeaderboardCache.findOne({ duration, department });
 
-    // Get top score per user for the given duration
-    const pipeline = [
-      { $match: matchStage },
-      { $sort: { wpm: -1 } },
-      {
-        $group: {
-          _id: '$user',
-          bestWpm: { $first: '$wpm' },
-          bestAccuracy: { $first: '$accuracy' },
-          scoreId: { $first: '$_id' },
-          createdAt: { $first: '$createdAt' },
-          wordsTyped: { $first: '$wordsTyped' },
-        },
-      },
-      { $sort: { bestWpm: -1 } },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'user',
-        },
-      },
-      { $unwind: '$user' },
-    ];
-
-    // Filter by department if provided
-    if (department && department !== 'all') {
-      pipeline.push({ $match: { 'user.department': department } });
+    // 2. If no cache exists yet (first run), generate an empty payload
+    if (!cache) {
+      return res.json({ leaderboard: [], total: 0, page, pages: 0 });
     }
 
-    // Count total
-    const countPipeline = [...pipeline, { $count: 'total' }];
-    const countResult = await Score.aggregate(countPipeline);
-    const total = countResult[0]?.total || 0;
+    // 3. Paginate the cached array
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedRankings = cache.rankings.slice(startIndex, endIndex);
 
-    // Paginate
-    pipeline.push({ $skip: (page - 1) * limit }, { $limit: limit });
-
-    const results = await Score.aggregate(pipeline);
-
-    const leaderboard = results.map((entry, index) => ({
-      rank: (page - 1) * limit + index + 1,
-      userId: entry._id,
-      name: entry.user.name,
-      rollNumber: entry.user.rollNumber,
-      department: entry.user.department,
-      wpm: entry.bestWpm,
-      accuracy: entry.bestAccuracy,
-      wordsTyped: entry.wordsTyped,
-      achievedAt: entry.createdAt,
-    }));
-
-    res.json({ leaderboard, total, page, pages: Math.ceil(total / limit) });
+    res.json({
+      leaderboard: paginatedRankings,
+      total: cache.totalParticipants,
+      page,
+      pages: Math.ceil(cache.totalParticipants / limit),
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Failed to fetch leaderboard' });

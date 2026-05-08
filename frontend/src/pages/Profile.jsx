@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { User, Hash, Mail, BookOpen, Zap, Target, Activity, Award, LogOut, Clock } from 'lucide-react';
+import { Clock, Target, LogOut, Award, Hash, BookOpen, Mail, Activity, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -15,9 +15,12 @@ const Profile = () => {
   const [selectedDuration, setSelectedDuration] = useState(60);
 
   useEffect(() => {
-    if (!user) { navigate('/login'); return; }
+    if (!user) {
+      navigate('/login');
+      return;
+    }
     fetchData();
-  }, [user]);
+  }, [user, navigate]);
 
   const fetchData = async () => {
     try {

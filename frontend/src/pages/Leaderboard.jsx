@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Trophy, Users, Filter, ChevronLeft, ChevronRight, Clock, Zap, Target, Crown } from 'lucide-react';
@@ -17,18 +17,14 @@ const Leaderboard = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  useEffect(() => { fetchDepartments(); }, []);
-  useEffect(() => { setPage(1); fetchLeaderboard(1); }, [duration, department]);
-  useEffect(() => { fetchLeaderboard(page); }, [page]);
-
-  const fetchDepartments = async () => {
+  const fetchDepartments = useCallback(async () => {
     try {
       const { data } = await axios.get('/api/scores/departments');
       setDepartments(data.departments);
     } catch {}
-  };
+  }, []);
 
-  const fetchLeaderboard = async (p = 1) => {
+  const fetchLeaderboard = useCallback(async (p = 1) => {
     setLoading(true);
     try {
       const { data } = await axios.get('/api/scores/leaderboard', {
@@ -42,7 +38,11 @@ const Leaderboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [duration, department]);
+
+  useEffect(() => { fetchDepartments(); }, [fetchDepartments]);
+  useEffect(() => { setPage(1); fetchLeaderboard(1); }, [duration, department, fetchLeaderboard]);
+  useEffect(() => { fetchLeaderboard(page); }, [page, fetchLeaderboard]);
 
   const getRankClass = (rank) => {
     if (rank === 1) return 'rank-gold';
