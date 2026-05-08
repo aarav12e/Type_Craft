@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { RotateCcw, Trophy, Keyboard, Zap, Target, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 // ─── Word bank ────────────────────────────────────────────────────────────────
@@ -25,7 +26,7 @@ const WORDS = [
   'tree', 'graph', 'node', 'edge', 'path', 'binary', 'hash', 'cache', 'state',
   'render', 'component', 'style', 'theme', 'color', 'font', 'size', 'width',
   'height', 'margin', 'padding', 'border', 'shadow', 'gradient', 'flex', 'grid',
-  'block', 'inline', 'static', 'fixed', 'relative', 'absolute', 'display', 'flex',
+  'block', 'inline', 'static', 'fixed', 'relative', 'absolute', 'display',
   'space', 'align', 'justify', 'center', 'start', 'end', 'wrap', 'gap', 'row',
 ];
 
@@ -46,20 +47,21 @@ const TypingPage = () => {
   const [words, setWords] = useState(generateWords());
   const [currentWordIdx, setCurrentWordIdx] = useState(0);
   const [currentInput, setCurrentInput] = useState('');
-  const [typedWords, setTypedWords] = useState([]); // {word, typed, correct}[]
+  const [typedWords, setTypedWords] = useState([]);
   const [status, setStatus] = useState('idle'); // idle | running | finished
   const [timeLeft, setTimeLeft] = useState(60);
   const [startTime, setStartTime] = useState(null);
   const [caretPos, setCaretPos] = useState({ top: 0, left: 0 });
+  const [caretVisible, setCaretVisible] = useState(true);
 
   const inputRef = useRef(null);
   const wordsRef = useRef(null);
   const timerRef = useRef(null);
   const wordElemsRef = useRef([]);
 
-  // ─── Stats ─────────────────────────────────────────────────────────────────
   const [finalStats, setFinalStats] = useState(null);
 
+  // ─── Stats ─────────────────────────────────────────────────────────────────
   const calcStats = useCallback(() => {
     const elapsed = duration - timeLeft;
     const minutesElapsed = Math.max(elapsed / 60, 1 / 60);
@@ -71,7 +73,7 @@ const TypingPage = () => {
         if (word[i] === typed[i]) correct++;
         else incorrect++;
       }
-      totalChars += typed.length + 1; // +1 for space
+      totalChars += typed.length + 1;
     });
 
     const wpm = Math.round(correct / 5 / minutesElapsed);
@@ -98,7 +100,7 @@ const TypingPage = () => {
     return () => clearInterval(timerRef.current);
   }, [status]);
 
-  // ─── When finished, calculate & save stats ─────────────────────────────────
+  // ─── When finished ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (status !== 'finished') return;
     const stats = calcStats();
@@ -114,42 +116,54 @@ const TypingPage = () => {
         totalChars: stats.totalChars,
         rawWpm: stats.rawWpm,
         wordsTyped: stats.wordsTyped,
-      }).then(() => toast.success('Score saved!')).catch(() => {});
+      }).then(() => toast.success('Score saved! 🏆')).catch(() => {});
     }
   }, [status]);
 
-  // ─── Caret position ────────────────────────────────────────────────────────
+
+  // ─── Auto-scroll + caret-after-scroll ─────────────────────────────────────
+  // We also re-trigger caret recalc after the scroll settles so getBoundingClientRect
+  // returns post-scroll coordinates.
   useEffect(() => {
     const wordEl = wordElemsRef.current[currentWordIdx];
-    if (!wordEl) return;
-    const letters = wordEl.querySelectorAll('.letter');
-    const charIdx = currentInput.length;
-    const targetLetter = letters[charIdx] || letters[letters.length - 1];
-    if (!targetLetter) return;
+    if (!wordEl || !wordsRef.current) return;
 
-    const wordRect = wordsRef.current.getBoundingClientRect();
-    const letterRect = targetLetter.getBoundingClientRect();
+    const container = wordsRef.current;
+    const wordTop = wordEl.offsetTop;
+    const wordBottom = wordTop + wordEl.offsetHeight;
 
-    const isAfterLast = charIdx >= letters.length;
-    setCaretPos({
-      top: letterRect.top - wordRect.top,
-      left: isAfterLast ? letterRect.right - wordRect.left : letterRect.left - wordRect.left,
-    });
-  }, [currentInput, currentWordIdx]);
-
-  // ─── Auto-scroll current word into view ────────────────────────────────────
-  useEffect(() => {
-    const wordEl = wordElemsRef.current[currentWordIdx];
-    if (wordEl && wordsRef.current) {
-      const containerTop = wordsRef.current.scrollTop;
-      const containerBottom = containerTop + wordsRef.current.clientHeight;
-      const top = wordEl.offsetTop;
-      const bottom = top + wordEl.offsetHeight;
-      if (bottom > containerBottom) {
-        wordsRef.current.scrollTop = top - wordsRef.current.clientHeight / 2;
-      }
+    if (wordBottom > container.scrollTop + container.clientHeight) {
+      container.scrollTop = wordTop - container.clientHeight / 3;
     }
-  }, [currentWordIdx]);
+
+    // After any scroll, recalc caret position using the updated layout
+    const recalcCaret = () => {
+      const letters = wordEl.querySelectorAll('.letter');
+      const charIdx = currentInput.length;
+      const containerRect = container.getBoundingClientRect();
+
+      if (letters.length === 0) {
+        const wordRect = wordEl.getBoundingClientRect();
+        setCaretPos({
+          top:  wordRect.top  - containerRect.top  + container.scrollTop,
+          left: wordRect.left - containerRect.left,
+        });
+        return;
+      }
+      const isAfterLast = charIdx >= letters.length;
+      const targetLetter = isAfterLast ? letters[letters.length - 1] : letters[charIdx];
+      if (!targetLetter) return;
+      const lr = targetLetter.getBoundingClientRect();
+      setCaretPos({
+        top:  lr.top  - containerRect.top  + container.scrollTop,
+        left: isAfterLast ? lr.right - containerRect.left : lr.left - containerRect.left,
+      });
+    };
+
+    // Use rAF so the browser paints the scroll first
+    const raf = requestAnimationFrame(recalcCaret);
+    return () => cancelAnimationFrame(raf);
+  }, [currentWordIdx, currentInput]);
 
   // ─── Keyboard handler ──────────────────────────────────────────────────────
   const handleKeyDown = (e) => {
@@ -162,7 +176,6 @@ const TypingPage = () => {
       }
     }
 
-    // Space → submit word
     if (e.key === ' ') {
       e.preventDefault();
       if (currentInput.trim() === '') return;
@@ -181,7 +194,6 @@ const TypingPage = () => {
       return;
     }
 
-    // Backspace at start of word → go back
     if (e.key === 'Backspace' && currentInput === '' && typedWords.length > 0) {
       e.preventDefault();
       const prev = typedWords[typedWords.length - 1];
@@ -207,19 +219,31 @@ const TypingPage = () => {
     setTimeLeft(duration);
     setStartTime(null);
     setFinalStats(null);
+    // Reset scroll
+    if (wordsRef.current) wordsRef.current.scrollTop = 0;
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   const changeDuration = (d) => {
     setDuration(d);
+    clearInterval(timerRef.current);
+    const newWords = generateWords();
+    wordElemsRef.current = [];
+    setWords(newWords);
+    setCurrentWordIdx(0);
+    setCurrentInput('');
+    setTypedWords([]);
+    setStatus('idle');
     setTimeLeft(d);
-    reset();
+    setStartTime(null);
+    setFinalStats(null);
+    if (wordsRef.current) wordsRef.current.scrollTop = 0;
+    setTimeout(() => inputRef.current?.focus(), 100);
   };
 
-  // ─── Focus input on click ──────────────────────────────────────────────────
   const handleContainerClick = () => inputRef.current?.focus();
 
-  // ─── Live WPM (during test) ────────────────────────────────────────────────
+  // ─── Live WPM ──────────────────────────────────────────────────────────────
   const liveWpm = () => {
     if (status !== 'running' || typedWords.length === 0) return 0;
     const elapsed = (Date.now() - startTime) / 60000;
@@ -241,33 +265,28 @@ const TypingPage = () => {
 
     let chars;
     if (typed) {
-      // Already submitted
       chars = word.split('').map((char, ci) => {
         const typedChar = typed.typed[ci];
         const cls = typedChar === undefined ? 'missed' : typedChar === char ? 'correct' : 'wrong';
         return <span key={ci} className={`letter ${cls}`}>{char}</span>;
       });
-      // Extra typed chars
       if (typed.typed.length > word.length) {
         typed.typed.slice(word.length).split('').forEach((ch, ci) => {
           chars.push(<span key={`extra-${ci}`} className="letter extra wrong">{ch}</span>);
         });
       }
     } else if (isActive) {
-      // Current word
       chars = word.split('').map((char, ci) => {
         const typedChar = currentInput[ci];
         const cls = typedChar === undefined ? '' : typedChar === char ? 'correct' : 'wrong';
         return <span key={ci} className={`letter ${cls}`}>{char}</span>;
       });
-      // Extra chars typed beyond word length
       if (currentInput.length > word.length) {
         currentInput.slice(word.length).split('').forEach((ch, ci) => {
           chars.push(<span key={`extra-${ci}`} className="letter extra wrong">{ch}</span>);
         });
       }
     } else {
-      // Upcoming word
       chars = word.split('').map((char, ci) => (
         <span key={ci} className="letter">{char}</span>
       ));
@@ -284,20 +303,31 @@ const TypingPage = () => {
     );
   };
 
+  // ─── Progress bar ──────────────────────────────────────────────────────────
+  const progress = status === 'running' ? ((duration - timeLeft) / duration) * 100 : 0;
+
   // ─── Results overlay ───────────────────────────────────────────────────────
   if (status === 'finished' && finalStats) {
     return (
       <div className="typing-page">
         <div className="results-card">
-          <h2 className="results-title">results</h2>
+          <div className="results-title-row">
+            <Trophy size={28} className="results-icon" />
+            <h2 className="results-title">results</h2>
+          </div>
+
           <div className="results-grid">
             <div className="result-stat big">
               <span className="stat-value accent">{finalStats.wpm}</span>
-              <span className="stat-label">wpm</span>
+              <span className="stat-label">
+                <Zap size={12} style={{display:'inline', marginRight:'4px'}}/>wpm
+              </span>
             </div>
             <div className="result-stat big">
               <span className="stat-value">{finalStats.accuracy}%</span>
-              <span className="stat-label">accuracy</span>
+              <span className="stat-label">
+                <Target size={12} style={{display:'inline', marginRight:'4px'}}/>accuracy
+              </span>
             </div>
             <div className="result-stat">
               <span className="stat-value">{finalStats.rawWpm}</span>
@@ -312,8 +342,8 @@ const TypingPage = () => {
               <span className="stat-label">correct chars</span>
             </div>
             <div className="result-stat">
-              <span className="stat-value">{finalStats.incorrect}</span>
-              <span className="stat-label">incorrect chars</span>
+              <span className="stat-value" style={{color:'var(--wrong)'}}>{finalStats.incorrect}</span>
+              <span className="stat-label">wrong chars</span>
             </div>
           </div>
 
@@ -324,8 +354,14 @@ const TypingPage = () => {
           )}
 
           <div className="results-actions">
-            <button className="btn-primary" onClick={reset}>try again</button>
-            <button className="btn-ghost" onClick={() => navigate('/leaderboard')}>leaderboard</button>
+            <button className="btn-primary" onClick={reset}>
+              <RotateCcw size={16} style={{display:'inline', marginRight:'6px'}}/>
+              try again
+            </button>
+            <button className="btn-ghost" onClick={() => navigate('/leaderboard')}>
+              <Trophy size={16} style={{display:'inline', marginRight:'6px'}}/>
+              leaderboard
+            </button>
           </div>
         </div>
       </div>
@@ -343,7 +379,7 @@ const TypingPage = () => {
               className={`dur-btn ${duration === d ? 'active' : ''}`}
               onClick={(e) => { e.stopPropagation(); changeDuration(d); }}
             >
-              {d}s
+              <Clock size={12} style={{display:'inline', marginRight:'3px'}}/>{d}s
             </button>
           ))}
         </div>
@@ -353,21 +389,35 @@ const TypingPage = () => {
         </div>
 
         <div className="live-wpm">
-          {status === 'running' && <span>{liveWpm()} <small>wpm</small></span>}
+          {status === 'running' && (
+            <span>
+              <Zap size={14} style={{display:'inline', marginRight:'3px', color:'var(--accent)'}}/>
+              {liveWpm()} <small>wpm</small>
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Word display */}
+      {/* Progress bar */}
+      <div className="progress-bar-container">
+        <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
+      </div>
+
+      {/* Status hint */}
       {status === 'idle' && (
-        <p className="start-hint">start typing to begin the test</p>
+        <p className="start-hint">
+          <Keyboard size={14} style={{display:'inline', marginRight:'6px'}}/>
+          start typing to begin the test
+        </p>
       )}
 
+      {/* Word display */}
       <div className="words-area" ref={wordsRef}>
         {/* Caret */}
         {(status === 'running' || status === 'idle') && (
           <div
             className="caret"
-            style={{ top: caretPos.top, left: caretPos.left }}
+            style={{ top: `${caretPos.top}px`, left: `${caretPos.left}px` }}
           />
         )}
         {words.map((word, idx) => renderWord(word, idx))}
@@ -389,8 +439,9 @@ const TypingPage = () => {
       />
 
       <div className="test-footer">
-        <button className="icon-btn" onClick={(e) => { e.stopPropagation(); reset(); }} title="Restart (Tab)">
-          ↺ restart
+        <button className="icon-btn" onClick={(e) => { e.stopPropagation(); reset(); }} title="Restart">
+          <RotateCcw size={15} style={{display:'inline', marginRight:'5px'}}/>
+          restart
         </button>
       </div>
     </div>

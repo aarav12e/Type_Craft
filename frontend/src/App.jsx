@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/Navbar';
 import TypingPage from './pages/TypingPage';
 import Login from './pages/Login';
@@ -34,20 +35,25 @@ const AppRoutes = () => (
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            style: {
-              background: '#1a1a2e',
-              color: '#e2e2e2',
-              border: '1px solid #e2b714',
-              fontFamily: "'JetBrains Mono', monospace",
-            },
-          }}
-        />
-        <AppRoutes />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Toaster
+            position="top-center"
+            toastOptions={{
+              style: {
+                background: 'var(--surface)',
+                color: 'var(--text)',
+                border: '1px solid var(--accent)',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '0.88rem',
+              },
+              success: { iconTheme: { primary: 'var(--correct)', secondary: 'var(--bg)' } },
+              error:   { iconTheme: { primary: 'var(--wrong)',   secondary: 'var(--bg)' } },
+            }}
+          />
+          <AppRoutes />
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

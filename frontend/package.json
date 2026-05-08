@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "axios": "^1.6.2",
+    "daisyui": "^5.5.19",
+    "lucide-react": "^1.14.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.21.0",
     "react-scripts": "5.0.1",
-    "axios": "^1.6.2",
-    "react-hot-toast": "^2.4.1",
     "recharts": "^2.10.1"
   },
   "scripts": {
@@ -19,10 +21,20 @@
   },
   "proxy": "http://localhost:5000",
   "eslintConfig": {
-    "extends": ["react-app"]
+    "extends": [
+      "react-app"
+    ]
   },
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
-    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   }
 }

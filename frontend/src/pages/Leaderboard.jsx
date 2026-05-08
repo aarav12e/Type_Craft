@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { Trophy, Users, Filter, ChevronLeft, ChevronRight, Clock, Zap, Target, Crown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const DURATIONS = [15, 30, 60, 120];
-const MEDALS = ['🥇', '🥈', '🥉'];
 
 const Leaderboard = () => {
   const { user } = useAuth();
@@ -17,18 +17,9 @@ const Leaderboard = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  useEffect(() => {
-    fetchDepartments();
-  }, []);
-
-  useEffect(() => {
-    setPage(1);
-    fetchLeaderboard(1);
-  }, [duration, department]);
-
-  useEffect(() => {
-    fetchLeaderboard(page);
-  }, [page]);
+  useEffect(() => { fetchDepartments(); }, []);
+  useEffect(() => { setPage(1); fetchLeaderboard(1); }, [duration, department]);
+  useEffect(() => { fetchLeaderboard(page); }, [page]);
 
   const fetchDepartments = async () => {
     try {
@@ -60,6 +51,13 @@ const Leaderboard = () => {
     return '';
   };
 
+  const getRankIcon = (rank) => {
+    if (rank === 1) return <span className="medal gold-medal">🥇</span>;
+    if (rank === 2) return <span className="medal silver-medal">🥈</span>;
+    if (rank === 3) return <span className="medal bronze-medal">🥉</span>;
+    return <span className="rank-num">{rank}</span>;
+  };
+
   const isCurrentUser = (entry) => user && entry.userId === user._id;
 
   const formatDate = (dateStr) => {
@@ -70,7 +68,11 @@ const Leaderboard = () => {
 
   return (
     <div className="leaderboard-page">
+      {/* Header */}
       <div className="lb-header">
+        <div className="lb-header-icon">
+          <Trophy size={36} />
+        </div>
         <h1>leaderboard</h1>
         <p>top typists at your college</p>
       </div>
@@ -78,7 +80,10 @@ const Leaderboard = () => {
       {/* Filters */}
       <div className="lb-filters">
         <div className="filter-group">
-          <label>test duration</label>
+          <label>
+            <Clock size={12} style={{display:'inline', marginRight:'4px'}}/>
+            test duration
+          </label>
           <div className="duration-tabs">
             {DURATIONS.map((d) => (
               <button
@@ -93,22 +98,30 @@ const Leaderboard = () => {
         </div>
 
         <div className="filter-group">
-          <label>department</label>
+          <label>
+            <Filter size={12} style={{display:'inline', marginRight:'4px'}}/>
+            department
+          </label>
           <select value={department} onChange={(e) => setDepartment(e.target.value)} className="dept-select">
             <option value="all">All Departments</option>
-            {departments.map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
+            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
       </div>
 
       {/* Stats bar */}
       <div className="lb-stats-bar">
+        <Users size={14} />
         <span>{total} students ranked</span>
-        <span>•</span>
+        <span className="stats-sep">•</span>
+        <Clock size={14} />
         <span>{duration}s test</span>
-        {department !== 'all' && <><span>•</span><span>{department}</span></>}
+        {department !== 'all' && (
+          <>
+            <span className="stats-sep">•</span>
+            <span>{department}</span>
+          </>
+        )}
       </div>
 
       {/* Podium for top 3 */}
@@ -116,14 +129,14 @@ const Leaderboard = () => {
         <div className="podium">
           {/* Silver - 2nd */}
           <div className="podium-item second">
-            <div className="podium-avatar">{leaderboard[1]?.name?.[0]?.toUpperCase()}</div>
+            <div className="podium-avatar silver-av">{leaderboard[1]?.name?.[0]?.toUpperCase()}</div>
             <div className="podium-name">{leaderboard[1]?.name}</div>
             <div className="podium-wpm">{leaderboard[1]?.wpm} wpm</div>
             <div className="podium-stand silver">2</div>
           </div>
           {/* Gold - 1st */}
           <div className="podium-item first">
-            <div className="crown">👑</div>
+            <Crown size={22} className="crown-icon" />
             <div className="podium-avatar gold">{leaderboard[0]?.name?.[0]?.toUpperCase()}</div>
             <div className="podium-name">{leaderboard[0]?.name}</div>
             <div className="podium-wpm accent">{leaderboard[0]?.wpm} wpm</div>
@@ -131,7 +144,7 @@ const Leaderboard = () => {
           </div>
           {/* Bronze - 3rd */}
           <div className="podium-item third">
-            <div className="podium-avatar">{leaderboard[2]?.name?.[0]?.toUpperCase()}</div>
+            <div className="podium-avatar bronze-av">{leaderboard[2]?.name?.[0]?.toUpperCase()}</div>
             <div className="podium-name">{leaderboard[2]?.name}</div>
             <div className="podium-wpm">{leaderboard[2]?.wpm} wpm</div>
             <div className="podium-stand bronze">3</div>
@@ -148,6 +161,7 @@ const Leaderboard = () => {
           </div>
         ) : leaderboard.length === 0 ? (
           <div className="lb-empty">
+            <Trophy size={40} style={{opacity:0.2}} />
             <p>No results yet for this filter. Be the first! 🚀</p>
           </div>
         ) : (
@@ -158,8 +172,14 @@ const Leaderboard = () => {
                 <th>student</th>
                 <th>roll no.</th>
                 <th>department</th>
-                <th>wpm</th>
-                <th>accuracy</th>
+                <th>
+                  <Zap size={12} style={{display:'inline', marginRight:'3px'}}/>
+                  wpm
+                </th>
+                <th>
+                  <Target size={12} style={{display:'inline', marginRight:'3px'}}/>
+                  accuracy
+                </th>
                 <th>date</th>
               </tr>
             </thead>
@@ -169,9 +189,7 @@ const Leaderboard = () => {
                   key={entry.userId}
                   className={`${getRankClass(entry.rank)} ${isCurrentUser(entry) ? 'current-user-row' : ''}`}
                 >
-                  <td className="rank-cell">
-                    {entry.rank <= 3 ? MEDALS[entry.rank - 1] : entry.rank}
-                  </td>
+                  <td className="rank-cell">{getRankIcon(entry.rank)}</td>
                   <td className="name-cell">
                     <span className="entry-name">{entry.name}</span>
                     {isCurrentUser(entry) && <span className="you-badge">you</span>}
@@ -193,14 +211,29 @@ const Leaderboard = () => {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="pagination">
-          <button className="page-btn" disabled={page === 1} onClick={() => setPage(p => p - 1)}>← prev</button>
+          <button
+            className="page-btn"
+            disabled={page === 1}
+            onClick={() => setPage(p => p - 1)}
+          >
+            <ChevronLeft size={16} />
+            prev
+          </button>
           <span className="page-info">{page} / {totalPages}</span>
-          <button className="page-btn" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>next →</button>
+          <button
+            className="page-btn"
+            disabled={page === totalPages}
+            onClick={() => setPage(p => p + 1)}
+          >
+            next
+            <ChevronRight size={16} />
+          </button>
         </div>
       )}
 
       {!user && (
         <div className="lb-cta">
+          <Trophy size={32} style={{color:'var(--accent)', opacity:0.7}} />
           <p>Want to appear on the leaderboard?</p>
           <a href="/register" className="btn-primary">Create an account →</a>
         </div>
