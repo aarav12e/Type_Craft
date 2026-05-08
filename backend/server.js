@@ -9,10 +9,9 @@ const scoreRoutes = require('./routes/scores');
 const app = express();
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
-}));
+// Allow all origins to simplify deployment connections (Vercel -> Backend)
+// Since we use Bearer Tokens in headers (not cookies), strict CORS isn't strictly necessary.
+app.use(cors());
 app.use(express.json());
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
