@@ -57,6 +57,7 @@ const TypingPage = () => {
   const wordsRef = useRef(null);
   const timerRef = useRef(null);
   const wordElemsRef = useRef([]);
+  const scoreSavedRef = useRef(false);
 
   const [finalStats, setFinalStats] = useState(null);
 
@@ -102,6 +103,9 @@ const TypingPage = () => {
   // ─── When finished ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (status !== 'finished') return;
+    if (scoreSavedRef.current) return; // Prevent infinite loop!
+    scoreSavedRef.current = true;
+
     const stats = calcStats();
     setFinalStats(stats);
 
@@ -221,6 +225,7 @@ const TypingPage = () => {
     setTimeLeft(duration);
     setStartTime(null);
     setFinalStats(null);
+    scoreSavedRef.current = false;
     // Reset scroll
     if (wordsRef.current) wordsRef.current.scrollTop = 0;
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -239,6 +244,7 @@ const TypingPage = () => {
     setTimeLeft(d);
     setStartTime(null);
     setFinalStats(null);
+    scoreSavedRef.current = false;
     if (wordsRef.current) wordsRef.current.scrollTop = 0;
     setTimeout(() => inputRef.current?.focus(), 100);
   };

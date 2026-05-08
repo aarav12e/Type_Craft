@@ -65,9 +65,15 @@ router.get('/leaderboard', async (req, res) => {
     // 1. Fetch the pre-calculated JSON leaderboard from the cache
     let cache = await LeaderboardCache.findOne({ duration, department });
 
-    // 2. If no cache exists yet (first run), generate an empty payload
+    // 2. If no cache exists yet (first run for this filter), calculate and save it
     if (!cache) {
-      return res.json({ leaderboard: [], total: 0, page, pages: 0 });
+      await updateRelevantCaches(duration, department !== 'all' ? department : null);
+      cache = await LeaderboardCache.findOne({ duration, department });
+      
+      // If still no cache (meaning no scores exist in the DB for this filter either)
+      if (!cache) {
+        return res.json({ leaderboard: [], total: 0, page, pages: 0 });
+      }
     }
 
     // 3. Paginate the cached array
